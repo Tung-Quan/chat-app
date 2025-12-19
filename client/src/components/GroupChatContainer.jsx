@@ -4,10 +4,13 @@ import MessageInput from "./MessageInput";
 import { useEffect, useRef, useState } from "react";
 import { Users, Settings, UserPlus, UserMinus, Edit2, X, Upload, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { addGroupMember, removeGroupMember } from "../lib/api";
+import { useChat } from "../hooks/useChat";
 
 const GroupChatContainer = () => {
   const { selectedGroup, groupMessages, loading, deleteMessage, sendMessage, editMessage, updateGroupInfo, deleteGroup } = useGroup();
   const { authUser } = useAuth();
+  const { users } = useChat();
   const messagesEndRef = useRef(null);
   const [hoveredMessage, setHoveredMessage] = useState(null);
   const [showGroupDetails, setShowGroupDetails] = useState(false);
@@ -21,6 +24,8 @@ const GroupChatContainer = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const longPressTimer = useRef(null);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [selectedUsersToAdd, setSelectedUsersToAdd] = useState([]);
 
   const handleDeleteMessage = async (messageId) => {
     setContextMenu(null);
@@ -132,6 +137,45 @@ const GroupChatContainer = () => {
     }
   };
 
+  const handleKickMember = async (memberId, memberName) => {
+    if (window.confirm(`Are you sure you want to remove ${memberName} from the group?`)) {
+      try {
+        await removeGroupMember(selectedGroup._id, memberId);
+        toast.success(`${memberName} has been removed from the group`);
+      } catch (error) {
+        console.error("Error removing member:", error);
+        toast.error("Failed to remove member");
+      }
+    }
+  };
+
+  const handleAddMembers = async () => {
+    if (selectedUsersToAdd.length === 0) {
+      toast.error("Please select at least one user");
+      return;
+    }
+
+    try {
+      for (const userId of selectedUsersToAdd) {
+        await addGroupMember(selectedGroup._id, userId);
+      }
+      toast.success(`${selectedUsersToAdd.length} member(s) added successfully`);
+      setShowAddMemberModal(false);
+      setSelectedUsersToAdd([]);
+    } catch (error) {
+      console.error("Error adding members:", error);
+      toast.error("Failed to add some members");
+    }
+  };
+
+  const toggleUserSelection = (userId) => {
+    setSelectedUsersToAdd(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
   const isAdmin = selectedGroup?.admins?.some(admin => 
     typeof admin === 'string' ? admin === authUser?._id : admin._id === authUser?._id
   );
@@ -170,6 +214,32 @@ const GroupChatContainer = () => {
       };
     }
     return null;
+  };
+
+  const renderMessageText = (text, isMine) => {
+    // URL regex pattern
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`underline underline-offset-2 hover:underline-offset-4 transition-all ${
+              isMine ? 'text-white font-medium' : 'text-blue-600 font-medium'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
   };
 
   return (
@@ -382,10 +452,21 @@ const GroupChatContainer = () => {
 
               {/* Members List */}
               <div>
-                <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Members ({selectedGroup?.members?.length || 0})
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Members ({selectedGroup?.members?.length || 0})
+                  </h4>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setShowAddMemberModal(true)}
+                      className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Add
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {selectedGroup?.members?.map((member) => {
                     const memberId = typeof member === 'string' ? member : member._id;
@@ -393,6 +474,7 @@ const GroupChatContainer = () => {
                     const isGroupAdmin = selectedGroup?.admins?.some(admin => 
                       (typeof admin === 'string' ? admin : admin._id) === memberId
                     );
+                    const isMemberCreator = selectedGroup?.creator?._id === memberId || selectedGroup?.creator === memberId;
 
                     return (
                       <div
@@ -419,11 +501,22 @@ const GroupChatContainer = () => {
                             )}
                           </div>
                         </div>
-                        {isGroupAdmin && (
-                          <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
-                            Admin
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {isGroupAdmin && (
+                            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">
+                              Admin
+                            </span>
+                          )}
+                          {isAdmin && !isMemberCreator && memberId !== authUser?._id && (
+                            <button
+                              onClick={() => handleKickMember(memberId, memberData?.username || 'Unknown')}
+                              className="p-1 text-red-500 hover:bg-red-50 rounded transition"
+                              title="Remove member"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -551,7 +644,9 @@ const GroupChatContainer = () => {
                             />
                           )}
                           {message.text && (
-                            <p className="break-words text-sm sm:text-base">{message.text}</p>
+                            <p className="break-words text-sm sm:text-base">
+                              {renderMessageText(message.text, isMine)}
+                            </p>
                           )}
                           <div className={`flex items-center gap-2 mt-1 text-xs ${
                             isMine ? "text-white/70" : "text-gray-500"
@@ -634,6 +729,98 @@ const GroupChatContainer = () => {
               <X className="w-4 h-4" />
               <span className="text-sm">Cancel</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Members Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-800">Add Members</h3>
+              <button
+                onClick={() => {
+                  setShowAddMemberModal(false);
+                  setSelectedUsersToAdd([]);
+                }}
+                className="p-1 hover:bg-gray-100 rounded-full transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              {users?.filter(user => 
+                !selectedGroup?.members?.some(member => 
+                  (typeof member === 'string' ? member : member._id) === user._id
+                )
+              ).length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>All users are already members</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {users
+                    ?.filter(user => 
+                      !selectedGroup?.members?.some(member => 
+                        (typeof member === 'string' ? member : member._id) === user._id
+                      )
+                    )
+                    .map(user => (
+                      <div
+                        key={user._id}
+                        onClick={() => toggleUserSelection(user._id)}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${
+                          selectedUsersToAdd.includes(user._id)
+                            ? 'bg-blue-50 border-2 border-blue-500'
+                            : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedUsersToAdd.includes(user._id)}
+                          onChange={() => {}}
+                          className="w-5 h-5 text-blue-500 rounded"
+                        />
+                        {user.profilePicture && (
+                          <img
+                            src={user.profilePicture}
+                            alt={user.username}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-800">{user.username}</p>
+                          {user.email && (
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-200 flex gap-2">
+              <button
+                onClick={() => {
+                  setShowAddMemberModal(false);
+                  setSelectedUsersToAdd([]);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddMembers}
+                disabled={selectedUsersToAdd.length === 0}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add {selectedUsersToAdd.length > 0 && `(${selectedUsersToAdd.length})`}
+              </button>
+            </div>
           </div>
         </div>
       )}

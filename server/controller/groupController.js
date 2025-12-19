@@ -359,6 +359,9 @@ export const addMember = async (req, res) => {
     await group.save();
     await group.populate('members', 'username email profilePicture');
 
+    // Get new member info for notification
+    const newMember = await User.findById(newMemberId).select('username email profilePicture');
+
     // Notify new member
     const socketId = userSocketMap[newMemberId.toString()];
     if (socketId) {
@@ -366,13 +369,14 @@ export const addMember = async (req, res) => {
     }
 
     // Notify all existing members
-    group.members.forEach( async (memberId) => {
-      if (memberId.toString() !== newMemberId) {
+    group.members.forEach((member) => {
+      const memberId = typeof member === 'string' ? member : member._id;
+      if (memberId.toString() !== newMemberId.toString()) {
         const memberSocketId = userSocketMap[memberId.toString()];
         if (memberSocketId) {
           io.to(memberSocketId).emit("memberAdded", {
             groupId,
-            newMember: await User.findById(newMemberId).select('username profilePicture')
+            newMember: newMember
           });
         }
       }

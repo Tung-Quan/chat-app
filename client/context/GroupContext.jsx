@@ -242,6 +242,17 @@ export const GroupProvider = ({ children }) => {
           ? { ...g, members: [...g.members, newMember] }
           : g
       ));
+      // Update selectedGroup if it's the current group
+      if (selectedGroup?._id === groupId) {
+        setSelectedGroup(prev => ({
+          ...prev,
+          members: [...prev.members, newMember]
+        }));
+      }
+      // Show toast if current user is in this group
+      if (groups.some(g => g._id === groupId)) {
+        toast.success(`${newMember.username} was added to the group`);
+      }
     });
 
     // Member removed
@@ -251,6 +262,20 @@ export const GroupProvider = ({ children }) => {
           ? { ...g, members: g.members.filter(m => m._id !== removedMemberId) }
           : g
       ));
+      // Update selectedGroup if it's the current group
+      if (selectedGroup?._id === groupId) {
+        const removedMember = selectedGroup.members.find(m => 
+          (typeof m === 'string' ? m : m._id) === removedMemberId
+        );
+        const memberName = typeof removedMember === 'object' ? removedMember.username : 'A member';
+        
+        setSelectedGroup(prev => ({
+          ...prev,
+          members: prev.members.filter(m => (typeof m === 'string' ? m : m._id) !== removedMemberId)
+        }));
+        
+        toast.info(`${memberName} was removed from the group`);
+      }
     });
 
     return () => {

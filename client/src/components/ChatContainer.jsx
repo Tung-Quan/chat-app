@@ -86,6 +86,32 @@ const ChatContainer = () => {
     });
   };
 
+  const renderMessageText = (text, isMine) => {
+    // URL regex pattern
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`underline underline-offset-2 hover:underline-offset-4 transition-all ${
+              isMine ? 'text-white font-medium' : 'text-blue-600 font-medium'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full">
       {showProfileModal && (
@@ -195,7 +221,11 @@ const ChatContainer = () => {
                           className="rounded-lg mb-2 w-full max-w-[300px] h-auto"
                         />
                       )}
-                      {message.text && <p className="break-words whitespace-pre-wrap">{message.text}</p>}
+                      {message.text && (
+                        <p className="break-words whitespace-pre-wrap">
+                          {renderMessageText(message.text, isMine)}
+                        </p>
+                      )}
                       <p
                         className={`text-xs mt-1 ${
                           isMine ? "text-white/70" : "text-gray-500"
