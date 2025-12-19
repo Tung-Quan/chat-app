@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import UserProfileModal from "./UserProfileModal";
 import CreateGroupModal from "./CreateGroupModal";
 import { useState, useEffect } from "react";
-import { Users, MessageCircle, Plus } from "lucide-react";
+import { Users, MessageCircle, Plus, Terminal as TerminalIcon } from "lucide-react";
 
 const Sidebar = ({ onSelectUser }) => {
   const { users = [], selectedUser, setSelectedUser, unSeenMessages = {} } = useChat();
@@ -73,6 +73,13 @@ const Sidebar = ({ onSelectUser }) => {
             </div>
           </div>
           <div className="flex space-x-2">
+            <button
+              onClick={() => navigate("/terminal")}
+              className="p-2 hover:bg-white/20 rounded-full transition"
+              title="Server Terminal"
+            >
+              <TerminalIcon className="w-5 h-5 text-white" />
+            </button>
             <button
               onClick={() => navigate("/profile")}
               className="p-2 hover:bg-white/20 rounded-full transition"

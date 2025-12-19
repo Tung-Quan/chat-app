@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
+import Terminal from './pages/Terminal'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -59,6 +60,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/terminal" 
+          element={
+            <ProtectedRoute>
+              <Terminal />
             </ProtectedRoute>
           } 
         />

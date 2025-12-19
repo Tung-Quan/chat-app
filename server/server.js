@@ -7,6 +7,7 @@ import { connectDB } from "./lib/db.js";
 import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import groupRouter from "./routes/groupRoutes.js";
+import { setupTerminal } from "./controller/terminalController.js";
 
 import { Server } from "socket.io";
 const app = express();
@@ -33,6 +34,9 @@ io.on("connection", (socket) => {
   }
   // Emit event to all connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+  // Setup terminal for this socket
+  setupTerminal(socket);
 
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${userId}, Socket ID: ${socket.id}`);
