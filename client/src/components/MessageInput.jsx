@@ -2,11 +2,14 @@ import { useState } from "react";
 import { useChat } from "../hooks/useChat";
 import toast from "react-hot-toast";
 
-const MessageInput = () => {
+  const MessageInput = ({ onSend }) => {
   const [text, setText] = useState("");
   const [image, setImage] = useState(null);
   const [isSending, setIsSending] = useState(false);
-  const { sendMessage } = useChat();
+  const { sendMessage: chatSendMessage } = useChat();
+  
+  // Use onSend prop if provided (for groups), otherwise use chat sendMessage (for DMs)
+  const sendMessage = onSend || chatSendMessage;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];

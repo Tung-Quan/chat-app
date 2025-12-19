@@ -132,3 +132,64 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error deleting message" });
   }
 };
+
+// Edit message controller
+export const editMessage = async (req, res) => {
+  try {
+    const messageId = req.params.id;
+    const { text } = req.body;
+    const userId = req.user._id;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Message text is required" 
+      });
+    }
+
+    // Find the message
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    // Check if the user is the sender of the message
+    if (message.sender.toString() !== userId.toString()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "You can only edit your own messages" 
+      });
+    }
+
+    // Update message
+    message.text = text;
+    message.edited = true;
+    message.editedAt = new Date();
+    await message.save();
+
+    // Create response with sender as ID (not populated)
+    const responseMessage = {
+      _id: message._id,
+      sender: message.sender,
+      receiver: message.receiver,
+      text: message.text,
+      image: message.image,
+      edited: message.edited,
+      editedAt: message.editedAt,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt
+    };
+
+    // Emit edit event to receiver if online
+    const receiverSocketId = userSocketMap[message.receiver.toString()];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageEdited", responseMessage);
+    }
+
+    res.status(200).json({ success: true, message: responseMessage });
+  } catch (error) {
+    console.error("Error editing message:", error);
+    res.status(500).json({ success: false, message: "Server error editing message" });
+  }
+};

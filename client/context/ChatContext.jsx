@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useCallback } from "react";
-import { getAllUsers, getMessages, sendMessage as sendMessageApi, deleteMessage as deleteMessageApi } from "../src/lib/api";
+import { getAllUsers, getMessages, sendMessage as sendMessageApi, deleteMessage as deleteMessageApi, editMessage as editMessageApi, deleteUser as deleteUserApi } from "../src/lib/api";
 import { useAuth } from "../src/hooks/useAuth";
 import toast from "react-hot-toast";
 
@@ -24,6 +24,26 @@ export const ChatProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
+    }
+  }, []);
+
+  // Delete user
+  const deleteUserAccount = useCallback(async (userId) => {
+    try {
+      const data = await deleteUserApi(userId);
+      if (data.success) {
+        toast.success("Account deleted successfully");
+        // Clear localStorage and redirect to login
+        localStorage.removeItem('token');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500);
+      } else {
+        toast.error(data.message || "Failed to delete account");
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error(error.response?.data?.message || "Failed to delete account");
     }
   }, []);
 
@@ -78,6 +98,24 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
 
+  // Edit message
+  const editMessage = useCallback(async (messageId, newText) => {
+    try {
+      const data = await editMessageApi(messageId, newText);
+      if (data.success) {
+        setMessages(prev => prev.map(msg => 
+          msg._id === messageId ? data.message : msg
+        ));
+        toast.success("Message updated");
+        return data.message;
+      }
+    } catch (error) {
+      console.error("Error editing message:", error);
+      toast.error("Failed to edit message");
+      throw error;
+    }
+  }, []);
+
   // Listen for new messages via socket
   useEffect(() => {
     if (!socket) return;
@@ -101,9 +139,40 @@ export const ChatProvider = ({ children }) => {
       setMessages(prev => prev.filter(msg => msg._id !== messageId));
     });
 
+    socket.on("messageEdited", (editedMessage) => {
+      // Update edited message in list
+      setMessages(prev => prev.map(msg => 
+        msg._id === editedMessage._id ? editedMessage : msg
+      ));
+    });
+
+    socket.on("newUser", (newUser) => {
+      // Add new user to users list
+      setUsers(prev => {
+        // Check if user already exists
+        if (prev.some(u => u._id === newUser._id)) {
+          return prev;
+        }
+        return [...prev, newUser];
+      });
+    });
+
+    socket.on("userDeleted", ({ userId }) => {
+      // Remove deleted user from list
+      setUsers(prev => prev.filter(u => u._id !== userId));
+      // If deleted user was selected, deselect
+      if (selectedUser?._id === userId) {
+        setSelectedUser(null);
+        setMessages([]);
+      }
+    });
+
     return () => {
       socket.off("newMessage");
       socket.off("messageDeleted");
+      socket.off("messageEdited");
+      socket.off("newUser");
+      socket.off("userDeleted");
     };
   }, [socket, selectedUser]);
 
@@ -129,8 +198,10 @@ export const ChatProvider = ({ children }) => {
     loading,
     sendMessage,
     deleteMessage,
+    editMessage,
     unSeenMessages,
-    fetchUsers
+    fetchUsers,
+    deleteUserAccount
   };
 
   return (

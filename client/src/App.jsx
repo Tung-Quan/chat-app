@@ -3,6 +3,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuth } from './hooks/useAuth'
 import { ChatProvider } from '../context/ChatContext'
+import { GroupProvider } from '../context/GroupContext'
 
 // Pages
 import Login from './pages/Login'
@@ -13,7 +14,13 @@ import Profile from './pages/Profile'
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { authUser } = useAuth();
-  return authUser ? <ChatProvider>{children}</ChatProvider> : <Navigate to="/login" />;
+  return authUser ? (
+    <ChatProvider>
+      <GroupProvider>
+        {children}
+      </GroupProvider>
+    </ChatProvider>
+  ) : <Navigate to="/login" />;
 };
 
 const App = () => {

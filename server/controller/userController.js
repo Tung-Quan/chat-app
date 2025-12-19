@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
 import cloudinary from '../lib/cloudinary.js';
+import { io, userSocketMap } from '../server.js';
 dotenv.config();
 
 // Signup user
@@ -50,16 +51,23 @@ export const signup = async (req, res) => {
 
     await newUser.save();
 
+    // Emit to all connected users that a new user registered
+    const newUserData = {
+      _id: newUser._id,
+      username: newUser.username,
+      email: newUser.email,
+      profilePicture: newUser.profilePicture,
+      bio: newUser.bio,
+      createdAt: newUser.createdAt,
+    };
+    
+    Object.values(userSocketMap).forEach(socketId => {
+      io.to(socketId).emit("newUser", newUserData);
+    });
+
     res.status(201).json({
       success: true,
-      userData: {
-        id: newUser._id,
-        username: newUser.username,
-        email: newUser.email,
-        profilePicture: newUser.profilePicture,
-        bio: newUser.bio,
-        createdAt: newUser.createdAt,
-      },
+      userData: newUserData,
       token,
       message: "User registered successfully",
     })
@@ -119,19 +127,50 @@ export const checkAuth = (req, res) => {
   });
 }
 
+// Delete user account
+export const deleteUser = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { userId: targetUserId } = req.params;
+
+    // Users can only delete their own account
+    if (userId.toString() !== targetUserId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own account"
+      });
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    // Emit to all connected users that a user was deleted
+    Object.values(userSocketMap).forEach(socketId => {
+      io.to(socketId).emit("userDeleted", { userId: userId.toString() });
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Account deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during account deletion"
+    });
+  }
+};
+
 // controller to update user profile
 export const updateProfile = async (req, res) => {
   try{
     const { username, bio, profilePicture } = req.body;
     const userId = req.user._id;
-    let updateData = {};
+    let updatedData = {};
 
     if(!profilePicture){
-      await User.findByIdAndUpdate(userId, { username, bio }, { new: true });
-      return res.status(200).json({
-        success: true,
-        message: "Profile updated successfully"
-      });
+      updatedData = await User.findByIdAndUpdate(userId, { username, bio }, { new: true });
     }else{
       // Upload new profile picture to Cloudinary
       const uploadResult = await cloudinary.uploader.upload(profilePicture);
@@ -141,6 +180,7 @@ export const updateProfile = async (req, res) => {
         profilePicture: uploadResult.secure_url
       }, { new: true });
     }
+    
     res.status(200).json({
       success: true,
       userData: updatedData,

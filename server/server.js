@@ -6,6 +6,7 @@ import { connectDB } from "./lib/db.js";
 
 import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
+import groupRouter from "./routes/groupRoutes.js";
 
 import { Server } from "socket.io";
 const app = express();
@@ -53,7 +54,9 @@ app.use("/api/status", (req, res) => {
   res.json({ status: "Server is running" });
 });
 app.use("/api/auth", userRouter);
+app.use("/api/users", userRouter);
 app.use("/api/messages", messageRouter);
+app.use("/api/groups", groupRouter);
 
 
 const PORT = process.env.PORT || 5000;

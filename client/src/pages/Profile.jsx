@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { useChat } from "../hooks/useChat";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAllUsers } from "../lib/api";
+import { Trash2 } from "lucide-react";
 
 const Profile = () => {
   const { authUser, updateProfile, onlineUsers } = useAuth();
+  const { deleteUserAccount } = useChat();
   const navigate = useNavigate();
   const { userId } = useParams();
   const [viewedUser, setViewedUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const isOwnProfile = !userId || userId === authUser?._id;
   const displayUser = isOwnProfile ? authUser : viewedUser;
@@ -64,7 +68,17 @@ const Profile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await updateProfile(formData);
-    toast.success("Profile updated successfully");
+  };
+
+  const handleDeleteAccount = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (authUser?._id) {
+      await deleteUserAccount(authUser._id);
+      setShowDeleteConfirm(false);
+    }
   };
 
   if (loading) {
@@ -160,6 +174,15 @@ const Profile = () => {
           >
             Update Profile
           </button>
+
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transform hover:scale-[1.02] transition duration-200 flex items-center justify-center gap-2"
+          >
+            <Trash2 className="w-5 h-5" />
+            Delete Account
+          </button>
         </form>
         ) : (
           <div className="space-y-6">
@@ -192,6 +215,39 @@ const Profile = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+              Delete Account?
+            </h2>
+            <p className="text-gray-600 mb-6 text-center">
+              Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteAccount}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:shadow-lg transition font-medium"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
