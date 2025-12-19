@@ -1,9 +1,8 @@
 import axios from "axios";
-import { createContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-
-export const AuthContext = createContext(null);
+import { AuthContext } from "./ContextValues";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 axios.defaults.baseURL = backendUrl;

@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../src/hooks/useAuth";
 import {
   getGroups,
@@ -13,8 +13,7 @@ import {
   deleteGroup as apiDeleteGroup
 } from "../src/lib/api";
 import toast from "react-hot-toast";
-
-export const GroupContext = createContext(null);
+import { GroupContext } from "./ContextValues";
 
 export const GroupProvider = ({ children }) => {
   const { socket } = useAuth();

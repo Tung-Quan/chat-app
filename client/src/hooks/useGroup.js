@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { GroupContext } from "../../context/GroupContext";
+import { GroupContext } from "../../context/ContextValues";
 
 export const useGroup = () => {
   const context = useContext(GroupContext);

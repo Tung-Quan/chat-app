@@ -1,9 +1,8 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getAllUsers, getMessages, sendMessage as sendMessageApi, deleteMessage as deleteMessageApi, editMessage as editMessageApi, deleteUser as deleteUserApi } from "../src/lib/api";
 import { useAuth } from "../src/hooks/useAuth";
 import toast from "react-hot-toast";
-
-export const ChatContext = createContext(null);
+import { ChatContext } from "./ContextValues";
 
 export const ChatProvider = ({ children }) => {
   const { socket } = useAuth();
