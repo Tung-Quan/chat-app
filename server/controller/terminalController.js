@@ -9,15 +9,19 @@ export const setupTerminal = (socket) => {
   
   socket.on('terminal:create', () => {
     try {
-      // Use bash for Linux/Unix systems
-      const shell = process.env.SHELL || '/bin/bash';
+      // Detect OS and use appropriate shell
+      const isWindows = process.platform === 'win32';
+      const shell = isWindows ? 'powershell.exe' : (process.env.SHELL || '/bin/bash');
+      
+      // Get home directory based on OS
+      const homeDir = process.env.HOME || process.env.USERPROFILE || (isWindows ? 'C:\\Users\\' + process.env.USERNAME : '/root');
       
       // Spawn PTY process
       const ptyProcess = spawn(shell, [], {
         name: 'xterm-color',
         cols: 80,
         rows: 24,
-        cwd: process.env.HOME || '/root',
+        cwd: homeDir,
         env: process.env,
       });
 

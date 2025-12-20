@@ -156,13 +156,7 @@ const Terminal = () => {
 
     // Handle user input
     term.onData((data) => {
-      // Prevent sending empty or whitespace-only input
-      if (data && data.trim().length > 0) {
-        socket.emit('terminal:input', data);
-      } else if (data === '\r' || data === '\n') {
-        // Allow Enter key
-        socket.emit('terminal:input', data);
-      }
+      socket.emit('terminal:input', data);
     });
 
     // Handle window resize
